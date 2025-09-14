@@ -1,0 +1,216 @@
+{% extends 'shop/base.html' %}
+{% load static %}
+
+{% block title %}Головна - Terko Shop{% endblock %}
+
+{% block content %}
+<!-- Герой секція -->
+<section class="hero-section bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">Ласкаво просимо до Terko Shop!</h1>
+                <p class="lead mb-4">Знайдіть найкращі товари за доступними цінами. Швидка доставка, якісний сервіс та широкий асортимент.</p>
+                <a href="{% url 'shop:product_list' %}" class="btn btn-light btn-lg">
+                    <i class="fas fa-shopping-bag me-2"></i>Переглянути товари
+                </a>
+            </div>
+            <div class="col-lg-6 text-center">
+                <i class="fas fa-shopping-cart fa-10x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Категорії -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">Наші категорії</h2>
+        <div class="row">
+            {% for category in categories %}
+            <div class="col-md-4 col-lg-2 mb-4">
+                <div class="card h-100 text-center category-card">
+                    <div class="card-body d-flex flex-column">
+                        {% if category.image %}
+                            <img src="{{ category.image.url }}" class="card-img-top mb-3" alt="{{ category.name }}" style="height: 100px; object-fit: cover;">
+                        {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center mb-3" style="height: 100px;">
+                                <i class="fas fa-folder fa-3x text-muted"></i>
+                            </div>
+                        {% endif %}
+                        <h5 class="card-title">{{ category.name }}</h5>
+                        <a href="{% url 'shop:product_list_by_category' category.slug %}" class="btn btn-outline-primary mt-auto">
+                            Переглянути
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">Категорії ще не додані</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Рекомендовані товари -->
+{% if featured_products %}
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5">Рекомендовані товари</h2>
+        <div class="row">
+            {% for product in featured_products %}
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card h-100 product-card">
+                    <div class="position-relative">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                <i class="fas fa-image fa-3x text-muted"></i>
+                            </div>
+                        {% endif %}
+                        {% if product.discount_percentage > 0 %}
+                            <span class="badge bg-danger position-absolute top-0 start-0 m-2">
+                                -{{ product.discount_percentage }}%
+                            </span>
+                        {% endif %}
+                        {% if product.is_featured %}
+                            <span class="badge bg-warning position-absolute top-0 end-0 m-2">
+                                <i class="fas fa-star"></i> Рекомендовано
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ product.name|truncatechars:50 }}</h5>
+                        <p class="card-text text-muted small">{{ product.description|truncatechars:80 }}</p>
+                        <div class="mt-auto">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                {% if product.discount_price %}
+                                    <div>
+                                        <span class="h5 text-danger">{{ product.discount_price }} ₴</span>
+                                        <small class="text-muted text-decoration-line-through ms-2">{{ product.price }} ₴</small>
+                                    </div>
+                                {% else %}
+                                    <span class="h5 text-primary">{{ product.price }} ₴</span>
+                                {% endif %}
+                                <small class="text-muted">{{ product.stock }} шт.</small>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'shop:product_detail' product.slug %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>Переглянути
+                                </a>
+                                {% if user.is_authenticated %}
+                                    <button class="btn btn-primary add-to-cart" data-product-id="{{ product.id }}">
+                                        <i class="fas fa-cart-plus me-1"></i>В кошик
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-4">
+            <a href="{% url 'shop:product_list' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-th-large me-2"></i>Переглянути всі товари
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Переваги -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-4 mb-4">
+                <div class="feature-box">
+                    <i class="fas fa-shipping-fast fa-3x text-primary mb-3"></i>
+                    <h4>Швидка доставка</h4>
+                    <p class="text-muted">Доставляємо товари по всій Україні за 1-3 дні</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-box">
+                    <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+                    <h4>Гарантія якості</h4>
+                    <p class="text-muted">Всі товари проходять контроль якості перед відправкою</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="feature-box">
+                    <i class="fas fa-headset fa-3x text-primary mb-3"></i>
+                    <h4>Підтримка 24/7</h4>
+                    <p class="text-muted">Наша служба підтримки завжди готова допомогти</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Додавання товару в кошик
+document.addEventListener('DOMContentLoaded', function() {
+    const addToCartButtons = document.querySelectorAll('.add-to-cart');
+    
+    addToCartButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            
+            fetch(`/cart/add/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Оновлюємо лічильник кошика
+                    const cartCount = document.getElementById('cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = data.cart_total;
+                    }
+                    
+                    // Показуємо повідомлення
+                    showAlert('success', data.message);
+                } else {
+                    showAlert('danger', 'Помилка при додаванні товару');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Помилка при додаванні товару');
+            });
+        });
+    });
+});
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container');
+    if (container) {
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        // Автоматично прибираємо повідомлення через 3 секунди
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    }
+}
+</script>
+{% endblock %}

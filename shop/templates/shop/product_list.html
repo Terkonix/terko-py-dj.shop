@@ -1,0 +1,257 @@
+{% extends 'shop/base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if category %}{{ category.name }} - {% endif %}Каталог товарів - Terko Shop
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'shop:home' %}">Головна</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'shop:product_list' %}">Каталог</a></li>
+                    {% if category %}
+                        <li class="breadcrumb-item active">{{ category.name }}</li>
+                    {% endif %}
+                </ol>
+            </nav>
+            
+            <h1 class="h2">
+                {% if category %}
+                    {{ category.name }}
+                {% else %}
+                    Всі товари
+                {% endif %}
+            </h1>
+            
+            {% if category and category.description %}
+                <p class="text-muted">{{ category.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Фільтри -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Фільтри</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Сортування -->
+                    <div class="mb-3">
+                        <label class="form-label">Сортування</label>
+                        <select class="form-select" id="sortSelect">
+                            <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>За датою</option>
+                            <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Ціна: від низької до високої</option>
+                            <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Ціна: від високої до низької</option>
+                            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>За назвою</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Категорії -->
+                    <div class="mb-3">
+                        <label class="form-label">Категорії</label>
+                        <div class="list-group list-group-flush">
+                            <a href="{% url 'shop:product_list' %}" 
+                               class="list-group-item list-group-item-action {% if not category %}active{% endif %}">
+                                Всі товари
+                            </a>
+                            {% for cat in categories %}
+                                <a href="{% url 'shop:product_list_by_category' cat.slug %}" 
+                                   class="list-group-item list-group-item-action {% if category.slug == cat.slug %}active{% endif %}">
+                                    {{ cat.name }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Товари -->
+        <div class="col-md-9">
+            <!-- Результати пошуку -->
+            {% if search_query %}
+                <div class="alert alert-info">
+                    <i class="fas fa-search me-2"></i>
+                    Результати пошуку для "{{ search_query }}"
+                </div>
+            {% endif %}
+
+            <!-- Список товарів -->
+            {% if products %}
+                <div class="row">
+                    {% for product in products %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 product-card">
+                            <div class="position-relative">
+                                {% if product.image %}
+                                    <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                                {% else %}
+                                    <div class="bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                        <i class="fas fa-image fa-3x text-muted"></i>
+                                    </div>
+                                {% endif %}
+                                {% if product.discount_percentage > 0 %}
+                                    <span class="badge bg-danger position-absolute top-0 start-0 m-2">
+                                        -{{ product.discount_percentage }}%
+                                    </span>
+                                {% endif %}
+                                {% if product.is_featured %}
+                                    <span class="badge bg-warning position-absolute top-0 end-0 m-2">
+                                        <i class="fas fa-star"></i>
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">{{ product.name|truncatechars:50 }}</h5>
+                                <p class="card-text text-muted small">{{ product.description|truncatechars:80 }}</p>
+                                <div class="mt-auto">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        {% if product.discount_price %}
+                                            <div>
+                                                <span class="h5 text-danger">{{ product.discount_price }} ₴</span>
+                                                <small class="text-muted text-decoration-line-through ms-2">{{ product.price }} ₴</small>
+                                            </div>
+                                        {% else %}
+                                            <span class="h5 text-primary">{{ product.price }} ₴</span>
+                                        {% endif %}
+                                        <small class="text-muted">{{ product.stock }} шт.</small>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <a href="{% url 'shop:product_detail' product.slug %}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i>Переглянути
+                                        </a>
+                                        {% if user.is_authenticated %}
+                                            <button class="btn btn-primary add-to-cart" data-product-id="{{ product.id }}">
+                                                <i class="fas fa-cart-plus me-1"></i>В кошик
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Пагінація -->
+                {% if products.has_other_pages %}
+                    <nav aria-label="Навігація по сторінках">
+                        <ul class="pagination justify-content-center">
+                            {% if products.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">Перша</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ products.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">Попередня</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Сторінка {{ products.number }} з {{ products.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if products.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ products.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">Наступна</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ products.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">Остання</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h4>Товари не знайдено</h4>
+                    <p class="text-muted">
+                        {% if search_query %}
+                            За вашим запитом "{{ search_query }}" товари не знайдено.
+                        {% else %}
+                            В цій категорії поки немає товарів.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'shop:product_list' %}" class="btn btn-primary">
+                        <i class="fas fa-th-large me-2"></i>Переглянути всі товари
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Сортування
+document.getElementById('sortSelect').addEventListener('change', function() {
+    const url = new URL(window.location);
+    url.searchParams.set('sort', this.value);
+    window.location.href = url.toString();
+});
+
+// Додавання товару в кошик
+document.addEventListener('DOMContentLoaded', function() {
+    const addToCartButtons = document.querySelectorAll('.add-to-cart');
+    
+    addToCartButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            
+            fetch(`/cart/add/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const cartCount = document.getElementById('cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = data.cart_total;
+                    }
+                    showAlert('success', data.message);
+                } else {
+                    showAlert('danger', 'Помилка при додаванні товару');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Помилка при додаванні товару');
+            });
+        });
+    });
+});
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container');
+    if (container) {
+        container.insertBefore(alertDiv, container.firstChild);
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    }
+}
+</script>
+{% endblock %}
