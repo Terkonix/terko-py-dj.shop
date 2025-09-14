@@ -57,18 +57,33 @@
                     {% if user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-user me-1"></i>{{ user.username }}
+                                <i class="fas fa-user me-1"></i>{{ user.get_full_name|default:user.username }}
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'shop:order_list' %}">Мої замовлення</a></li>
+                                <li><a class="dropdown-item" href="{% url 'shop:user_profile' %}">
+                                    <i class="fas fa-user me-2"></i>Мій профіль
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'shop:order_list' %}">
+                                    <i class="fas fa-shopping-bag me-2"></i>Мої замовлення
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'shop:change_password' %}">
+                                    <i class="fas fa-key me-2"></i>Зміна паролю
+                                </a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'admin:logout' %}">Вийти</a></li>
+                                <li><a class="dropdown-item" href="{% url 'shop:user_logout' %}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Вийти
+                                </a></li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'admin:login' %}">
+                            <a class="nav-link" href="{% url 'shop:user_login' %}">
                                 <i class="fas fa-sign-in-alt me-1"></i>Увійти
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'shop:user_register' %}">
+                                <i class="fas fa-user-plus me-1"></i>Реєстрація
                             </a>
                         </li>
                     {% endif %}
@@ -77,7 +92,11 @@
                         <a class="nav-link position-relative" href="{% url 'shop:cart_view' %}">
                             <i class="fas fa-shopping-cart"></i>
                             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-count">
-                                {% if user.is_authenticated and user.cart %}{{ user.cart.total_items }}{% else %}0{% endif %}
+                                {% if user.is_authenticated %}
+                                    {% with user.cart as cart %}
+                                        {% if cart %}{{ cart.total_items }}{% else %}0{% endif %}
+                                    {% endwith %}
+                                {% else %}0{% endif %}
                             </span>
                         </a>
                     </li>

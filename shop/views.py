@@ -1,12 +1,15 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
+from django.urls import reverse
 from .models import Category, Product, Cart, CartItem, Order, OrderItem, Review
-from .forms import ReviewForm, CheckoutForm
+from .forms import ReviewForm, CheckoutForm, UserRegistrationForm, UserLoginForm, UserProfileForm
 
 
 def home(request):
@@ -97,9 +100,12 @@ def product_detail(request, product_slug):
     return render(request, 'shop/product_detail.html', context)
 
 
-@login_required
 def cart_view(request):
     """Перегляд кошика"""
+    if not request.user.is_authenticated:
+        messages.warning(request, 'Для перегляду кошика необхідно увійти в систему.')
+        return redirect('shop:user_login')
+    
     cart, created = Cart.objects.get_or_create(user=request.user)
     cart_items = cart.items.all()
     
@@ -110,10 +116,19 @@ def cart_view(request):
     return render(request, 'shop/cart.html', context)
 
 
-@login_required
 @require_POST
 def add_to_cart(request, product_id):
     """Додавання товару в кошик"""
+    if not request.user.is_authenticated:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'message': 'Для додавання товару в кошик необхідно увійти в систему.',
+                'redirect': '/login/'
+            })
+        messages.warning(request, 'Для додавання товару в кошик необхідно увійти в систему.')
+        return redirect('shop:user_login')
+    
     product = get_object_or_404(Product, id=product_id, is_active=True)
     cart, created = Cart.objects.get_or_create(user=request.user)
     
@@ -135,7 +150,7 @@ def add_to_cart(request, product_id):
         })
     
     messages.success(request, f'{product.name} додано в кошик')
-    return redirect('product_detail', product_slug=product.slug)
+    return redirect('shop:product_detail', product_slug=product.slug)
 
 
 @login_required
@@ -281,3 +296,128 @@ def search(request):
         'query': query,
     }
     return render(request, 'shop/search.html', context)
+
+
+# Аутентифікація
+def user_login(request):
+    """Вхід користувача"""
+    if request.user.is_authenticated:
+        return redirect('shop:home')
+    
+    if request.method == 'POST':
+        form = UserLoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            remember_me = form.cleaned_data.get('remember_me', False)
+            
+            # Спробуємо знайти користувача за username або email
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                try:
+                    user = User.objects.get(email=username)
+                except User.DoesNotExist:
+                    user = None
+            
+            if user and user.check_password(password):
+                login(request, user)
+                if not remember_me:
+                    request.session.set_expiry(0)  # Сесія закінчується при закритті браузера
+                messages.success(request, f'Ласкаво просимо, {user.first_name or user.username}!')
+                
+                # Перенаправляємо на наступну сторінку або на головну
+                next_page = request.GET.get('next', 'shop:home')
+                return redirect(next_page)
+            else:
+                messages.error(request, 'Невірне ім\'я користувача або пароль.')
+    else:
+        form = UserLoginForm()
+    
+    context = {
+        'form': form,
+        'title': 'Вхід в систему'
+    }
+    return render(request, 'shop/auth/login.html', context)
+
+
+def user_register(request):
+    """Реєстрація користувача"""
+    if request.user.is_authenticated:
+        return redirect('shop:home')
+    
+    if request.method == 'POST':
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            user.email = form.cleaned_data['email']
+            user.first_name = form.cleaned_data['first_name']
+            user.last_name = form.cleaned_data['last_name']
+            user.save()
+            
+            # Автоматично логінимо користувача після реєстрації
+            login(request, user)
+            messages.success(request, f'Реєстрація успішна! Ласкаво просимо, {user.first_name}!')
+            return redirect('shop:home')
+    else:
+        form = UserRegistrationForm()
+    
+    context = {
+        'form': form,
+        'title': 'Реєстрація'
+    }
+    return render(request, 'shop/auth/register.html', context)
+
+
+@login_required
+def user_logout(request):
+    """Вихід користувача"""
+    logout(request)
+    messages.info(request, 'Ви успішно вийшли з системи.')
+    return redirect('shop:home')
+
+
+@login_required
+def user_profile(request):
+    """Профіль користувача"""
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Профіль успішно оновлено!')
+            return redirect('shop:user_profile')
+    else:
+        form = UserProfileForm(instance=request.user)
+    
+    # Отримуємо замовлення користувача
+    orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
+    
+    context = {
+        'form': form,
+        'orders': orders,
+        'title': 'Мій профіль'
+    }
+    return render(request, 'shop/auth/profile.html', context)
+
+
+@login_required
+def change_password(request):
+    """Зміна паролю"""
+    if request.method == 'POST':
+        current_password = request.POST.get('current_password')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        
+        if not request.user.check_password(current_password):
+            messages.error(request, 'Поточний пароль невірний.')
+        elif new_password != confirm_password:
+            messages.error(request, 'Нові паролі не співпадають.')
+        elif len(new_password) < 8:
+            messages.error(request, 'Новий пароль повинен містити принаймні 8 символів.')
+        else:
+            request.user.set_password(new_password)
+            request.user.save()
+            messages.success(request, 'Пароль успішно змінено!')
+            return redirect('shop:user_profile')
+    
+    return render(request, 'shop/auth/change_password.html', {'title': 'Зміна паролю'})

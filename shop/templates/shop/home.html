@@ -183,7 +183,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Показуємо повідомлення
                     showAlert('success', data.message);
                 } else {
-                    showAlert('danger', 'Помилка при додаванні товару');
+                    if (data.redirect) {
+                        // Перенаправляємо на сторінку входу
+                        window.location.href = data.redirect;
+                    } else {
+                        showAlert('danger', data.message || 'Помилка при додаванні товару');
+                    }
                 }
             })
             .catch(error => {
